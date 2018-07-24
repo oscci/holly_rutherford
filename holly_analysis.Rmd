@@ -1,7 +1,7 @@
 ---
 title: "Measurement of language laterality"
 author: "DVM Bishop"
-date: "18/07/2018"
+date: "24/07/2018"
 output: html_document
 ---
 
@@ -15,6 +15,7 @@ library(psych)
 library(knitr)
 require(beanplot)
 require(psych) #for cor.ci - correlations with confidence intervals
+library("ggpubr") #scatterplot with CI and correlation coeffs
 ```
 
 ## R Markdown
@@ -40,6 +41,11 @@ allsubs <- read.csv('WSLG_Participant_Info.csv')
 #str(alldat) #uncomment these lines to check variables in the file
 #head(alldat)
 
+#put the N words produced per task with other data
+alldat$SG_words<-allsubs$SG_words
+alldat$LG_words<-allsubs$LG_words
+alldat$WG_words<-allsubs$WG_words
+
 #compute percentage of trials marked as omitted before processing
 #This number is reported in Results.
 
@@ -61,7 +67,7 @@ thesecols<-c(thesecols,which(colnames(alldat)==c('odd_Word','even_Word')))
 for (i in 1:3){
   colrange=(1+(i-1)*2):(2+(i-1)*2)
   tempmatrix<-alldat[,thesecols[colrange]]
-  spear<-cor.ci(tempmatrix,plot=FALSE,method='spearman')
+  spear<-cor.ci(tempmatrix,plot=FALSE,method='spearman',n.iter=10000) #cor.ci gives correlation and the upper and lower CI values
   myspear[i,1]<-min(spear$rho) #max is always 1, so this finds actual correlation!
   myspear[i,2]<-spear$ci$low.e #empirical CIs
   myspear[i,3]<-spear$ci$up.e
@@ -74,8 +80,9 @@ print(myspear)
 shortdat <- select(alldat,N_List,N_Sent,N_Word,
                    LI_List,LI_Sent,LI_Word,
                    latency_List,latency_Sent,latency_Word,
-                   lat_List,lat_Sent,lat_Word)
-stargazer(shortdat[1:9], type = "text") #just for quick viewing
+                   lat_List,lat_Sent,lat_Word,
+                   LG_words,SG_words,WG_words)
+stargazer(shortdat, type = "text") #just for quick viewing
 
 sumtable<-round(describe(shortdat),2)
 
@@ -312,6 +319,8 @@ colMeans(alldat[,c(67,93:95)])
 ##Exploratory analyses
 1. Is bilateral language a true category, or a consequence of poor reliability?
 
+N.B. This is not included in the Rutherford et al write-up, as it makes sense to look at this question using a larger dataset combining results across several studies to give a larger N of bilateral cases.
+It's retained here just for interest. 
 Language laterality is coded as bilateral when the confidence interval for the LI encompasses zero. This could reflect genuine lack of bias, but it could also occur if the subject had noisy data. We explored this question by comparing the values of the standard error of the LI for those with consistent laterality (L or R) and those classified as bilateral. The standard errors for the lateralised vs nonlateralised were comparable for the SG and LG tasks, but for the WG task, the SE was substantially higher for the bilateral group, suggesting that unreliability played a role in their categorisation as bilateral.
 
 ```{r bilat.se}
@@ -330,7 +339,34 @@ for (i in 1:3){
 }
 
 ```
-##2. Is the bimodality of laterality indices an artefact of the method of calculation?
+##2. Is size of laterality index related to amount of verbal material produced?
+This is included because it's often raised by reviewers etc. We have not found such an association in prior studies, nor in a study specifically designed to vary this within subjects (Badcock et al, 2012)
+Badcock, N. A., Nye, A., & Bishop, D. V. M. (2012). Using functional Transcranial Doppler Ultrasonography to assess language lateralization: Influence of task and difficulty level. Laterality. doi:DOI:10.1080/1357650X.2011.615128
+
+```{r nwords_corr}
+
+
+#Look at relationship between N words produced and LI within task
+#Use Bonferroni corrected p = .016, as no a priori prediction
+
+ggscatter(alldat,y="LI_List", x="LG_words" ,
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "N words", ylab = "LI",title='List Generation',cor.coef.coord=c(17,3))
+ggscatter(alldat,y="LI_Sent", x="SG_words" ,
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "N words", ylab = "LI",title='Sentence Generation')
+ggscatter(alldat,y="LI_Word", x="WG_words" ,
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "N words", ylab = "LI",title='Word Generation')
+
+
+
+```
+
+##3. Is the bimodality of laterality indices an artefact of the method of calculation?
 Look at distribution of scores on ListGen with standard LI and poimeanLI
 
 ```{r bimodal.check}
